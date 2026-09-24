@@ -1,0 +1,6 @@
+{
+  "name": "Ingage LMS",
+  "description": "Job-role based learning platform prototype with career-ready paths, hands-on projects, sequential gated assessments, and enterprise hiring.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

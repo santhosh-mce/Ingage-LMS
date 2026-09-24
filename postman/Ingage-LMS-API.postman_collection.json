@@ -1,0 +1,2040 @@
+{
+  "info": {
+    "_postman_id": "ingage-lms-complete-api-v1",
+    "name": "INGAGE LMS API Collection",
+    "description": "Complete, production-ready Postman API collection for the Ingage Learning Management System (Spring Boot + PostgreSQL + Razorpay + OAuth2).\n\n### Environment Variables\n- `baseUrl`: Base API URL (`http://localhost:8080/api` for Local, `https://ingage-lms.onrender.com/api` for Render Production)\n- `token`: Bearer JWT token automatically populated upon Login or OTP verification\n- `adminToken`: Admin JWT token for `/admin/*` protected routes\n\n### End-to-End Learner Workflow:\n1. **Register** (`POST /auth/register`) or **Login** (`POST /auth/login`)\n2. **Get Profile** (`GET /users/profile`)\n3. **Browse Catalog** (`GET /courses`)\n4. **Inspect Curriculum** (`GET /courses/{{courseId}}/content`)\n5. **Create Order** (`POST /orders/create`)\n6. **Verify Payment** (`POST /payments/verify`)\n7. **Access Course Player** (`GET /courses/{{courseId}}/learn`)\n8. **Stream Video** (`GET /learning/lessons/{{lessonId}}/video`)\n9. **Mark Complete** (`POST /progress/complete-lesson`)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "1. Authentication",
+      "item": [
+        {
+          "name": "Register User",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Alex Mercer\",\n  \"email\": \"alex.mercer@example.com\",\n  \"password\": \"SecureP@ssword2026!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "register"]
+            },
+            "description": "Register a new student account. Role defaults to STUDENT and email is stored in PostgreSQL."
+          },
+          "response": []
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.token) {",
+                  "    pm.environment.set(\"token\", json.token);",
+                  "    pm.collectionVariables.set(\"token\", json.token);",
+                  "}",
+                  "if (json.userId) {",
+                  "    pm.environment.set(\"userId\", json.userId);",
+                  "}",
+                  "if (json.role === 'ADMIN') {",
+                  "    pm.environment.set(\"adminToken\", json.token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"alex.mercer@example.com\",\n  \"password\": \"SecureP@ssword2026!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "Authenticates user credentials. Returns JWT access token (valid 24 hours), userId, name, and role. Automatically sets `token` in the environment."
+          },
+          "response": []
+        },
+        {
+          "name": "Request Login OTP",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"alex.mercer@example.com\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login/request-otp",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login", "request-otp"]
+            },
+            "description": "Generates a 6-digit numeric login verification code for passwordless email sign-in."
+          },
+          "response": []
+        },
+        {
+          "name": "Verify Login OTP",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.token) {",
+                  "    pm.environment.set(\"token\", json.token);",
+                  "}",
+                  "if (json.userId) {",
+                  "    pm.environment.set(\"userId\", json.userId);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"alex.mercer@example.com\",\n  \"otp\": \"123456\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login/verify-otp",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login", "verify-otp"]
+            },
+            "description": "Verifies 6-digit OTP code and returns standard AuthResponse with JWT token."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Current Auth Identity (/auth/me)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "me"]
+            },
+            "description": "Returns authenticated user identity info (userId, name, email, role) based on Spring Security authentication context."
+          },
+          "response": []
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/logout",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "logout"]
+            },
+            "description": "Invalidates authentication cookie (clears AUTH_TOKEN cookie at path /api). Status 204 No Content."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "2. OAuth 2.0 (Social Login)",
+      "item": [
+        {
+          "name": "Google OAuth Authorization (Browser)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/oauth2/authorization/google",
+              "host": ["{{baseUrl}}"],
+              "path": ["oauth2", "authorization", "google"]
+            },
+            "description": "Initiated by the browser. Redirects user to Google OAuth 2.0 consent screen (`https://accounts.google.com/o/oauth2/v2/auth`)."
+          },
+          "response": []
+        },
+        {
+          "name": "Google OAuth Callback (Backend Endpoint)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/login/oauth2/code/google?code=4%2F0AY0e-g...&state=...",
+              "host": ["{{baseUrl}}"],
+              "path": ["login", "oauth2", "code", "google"],
+              "query": [
+                { "key": "code", "value": "4/0AY0e-g..." },
+                { "key": "state", "value": "..." }
+              ]
+            },
+            "description": "Invoked by Google upon successful authentication. Spring Security exchanges authorization code for tokens, synchronizes user in PostgreSQL, generates JWT, and redirects browser to `{{frontendOauthSuccessUrl}}?token=JWT_TOKEN`."
+          },
+          "response": []
+        },
+        {
+          "name": "LinkedIn OAuth Authorization (Browser)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/oauth2/authorization/linkedin",
+              "host": ["{{baseUrl}}"],
+              "path": ["oauth2", "authorization", "linkedin"]
+            },
+            "description": "Initiated by browser. Redirects user to LinkedIn OAuth 2.0 authorization screen (`https://www.linkedin.com/oauth/v2/authorization`)."
+          },
+          "response": []
+        },
+        {
+          "name": "LinkedIn OAuth Callback (Backend Endpoint)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/login/oauth2/code/linkedin?code=AQU...&state=...",
+              "host": ["{{baseUrl}}"],
+              "path": ["login", "oauth2", "code", "linkedin"],
+              "query": [
+                { "key": "code", "value": "AQU..." },
+                { "key": "state", "value": "..." }
+              ]
+            },
+            "description": "Invoked by LinkedIn upon user approval. Spring Security processes callback, registers/logs in user, and redirects to `{{frontendOauthSuccessUrl}}?token=JWT_TOKEN`."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "3. User & Profile",
+      "item": [
+        {
+          "name": "Get User Profile (/users/profile)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/users/profile",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "profile"]
+            },
+            "description": "Retrieves the currently authenticated user's complete profile, including userId, name, email, role, and accessible profile image URL."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Current User (/users/me)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/users/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "me"]
+            },
+            "description": "Alias endpoint for `GET /users/profile`. Used by the frontend client to verify session and load user profile into Redux."
+          },
+          "response": []
+        },
+        {
+          "name": "Upload Profile Image (/users/profile/image)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "image",
+                  "type": "file",
+                  "description": "Avatar image file (JPG, PNG, WEBP, max 5MB)"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users/profile/image",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "profile", "image"]
+            },
+            "description": "Uploads and updates user profile picture. Validates max 5MB, format (JPG/PNG/WEBP), replaces previous image safely, and returns updated user payload."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Profile Image (/users/profile/image)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/users/profile/image",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "profile", "image"]
+            },
+            "description": "Removes user avatar file from disk and clears profileImage in database."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "4. Courses",
+      "item": [
+        {
+          "name": "Get Published Courses",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (Array.isArray(json) && json.length > 0) {",
+                  "    pm.environment.set(\"courseId\", json[0].id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/courses?search=",
+              "host": ["{{baseUrl}}"],
+              "path": ["courses"],
+              "query": [
+                { "key": "search", "value": "", "description": "Optional keyword search" }
+              ]
+            },
+            "description": "Public course catalog endpoint. Returns all published courses matching optional search query."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Course By ID",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/courses/{{courseId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["courses", "{{courseId}}"]
+            },
+            "description": "Public endpoint retrieving details of a single course by numeric ID."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Course Curriculum & Content",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/courses/{{courseId}}/content",
+              "host": ["{{baseUrl}}"],
+              "path": ["courses", "{{courseId}}", "content"]
+            },
+            "description": "Returns full curriculum breakdown (sections, lessons, freePreview flags, durations, and enrollment status)."
+          },
+          "response": []
+        },
+        {
+          "name": "Check Enrollment Status",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/courses/{{courseId}}/enrollment-status",
+              "host": ["{{baseUrl}}"],
+              "path": ["courses", "{{courseId}}", "enrollment-status"]
+            },
+            "description": "Returns `{ isEnrolled: boolean, courseId: number, status: string, progressPercentage: number }` for the authenticated user."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Course Learn Access",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/courses/{{courseId}}/learn",
+              "host": ["{{baseUrl}}"],
+              "path": ["courses", "{{courseId}}", "learn"]
+            },
+            "description": "Retrieves authorized learning environment details for an enrolled course, including active lessons and progress."
+          },
+          "response": []
+        },
+        {
+          "name": "Stream Course Lesson Video",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Range", "value": "bytes=0-1048575", "description": "HTTP 206 Partial Content Range Header" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/courses/{{courseId}}/lessons/{{lessonId}}/video",
+              "host": ["{{baseUrl}}"],
+              "path": ["courses", "{{courseId}}", "lessons", "{{lessonId}}", "video"]
+            },
+            "description": "Streams protected MP4 video. Verifies active course enrollment (or free preview status). Supports byte-range seeking."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "5. Learning & Video Streaming",
+      "item": [
+        {
+          "name": "Get My Active Enrollments",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/learning/my-enrollments",
+              "host": ["{{baseUrl}}"],
+              "path": ["learning", "my-enrollments"]
+            },
+            "description": "Returns all courses the authenticated user is enrolled in, ordered by enrollment date with current progress percentage."
+          },
+          "response": []
+        },
+        {
+          "name": "Stream Lesson Video (/learning/lessons/{id}/video)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Range", "value": "bytes=0-", "description": "HTTP Partial Content Range" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/learning/lessons/{{lessonId}}/video",
+              "host": ["{{baseUrl}}"],
+              "path": ["learning", "lessons", "{{lessonId}}", "video"]
+            },
+            "description": "Direct protected video streaming endpoint. Enforces enrollment verification before returning video/mp4 stream."
+          },
+          "response": []
+        },
+        {
+          "name": "Mark Lesson Complete",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"lessonId\": {{lessonId}}\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/progress/complete-lesson",
+              "host": ["{{baseUrl}}"],
+              "path": ["progress", "complete-lesson"]
+            },
+            "description": "Marks a lesson as completed for the authenticated user and recalculates overall course progress percentage."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "6. Payments & Razorpay",
+      "item": [
+        {
+          "name": "Create Razorpay Order (/orders/create)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.orderId) {",
+                  "    pm.environment.set(\"orderId\", json.orderId);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"courseId\": {{courseId}},\n  \"couponCode\": \"WELCOME50\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/orders/create",
+              "host": ["{{baseUrl}}"],
+              "path": ["orders", "create"]
+            },
+            "description": "Creates a Razorpay payment order for course purchase. Applies discount coupon if valid and returns Razorpay orderId, amount, and keyId."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Order Alias (/payments/create-order)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"courseId\": {{courseId}}\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/payments/create-order",
+              "host": ["{{baseUrl}}"],
+              "path": ["payments", "create-order"]
+            },
+            "description": "Alias route for creating a Razorpay checkout order."
+          },
+          "response": []
+        },
+        {
+          "name": "Verify Payment & Complete Enrollment",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"razorpay_payment_id\": \"pay_test_1234567890\",\n  \"razorpay_order_id\": \"{{orderId}}\",\n  \"razorpay_signature\": \"test_signature\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/payments/verify",
+              "host": ["{{baseUrl}}"],
+              "path": ["payments", "verify"]
+            },
+            "description": "Verifies HMAC-SHA256 Razorpay signature. Upon verification, automatically creates active Enrollment and registers payment in PostgreSQL."
+          },
+          "response": []
+        },
+        {
+          "name": "Get My Payment History",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/payments/my-payments",
+              "host": ["{{baseUrl}}"],
+              "path": ["payments", "my-payments"]
+            },
+            "description": "Returns list of all payment transactions made by the authenticated student."
+          },
+          "response": []
+        },
+        {
+          "name": "Validate Discount / Coupon",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"couponCode\": \"WELCOME50\",\n  \"amount\": 4999.0\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/discounts/validate",
+              "host": ["{{baseUrl}}"],
+              "path": ["discounts", "validate"]
+            },
+            "description": "Validates coupon code, checks expiration, usage limits, and calculates discounted amount."
+          },
+          "response": []
+        },
+        {
+          "name": "Razorpay Server Webhook",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Razorpay-Signature", "value": "verified" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"event\": \"payment.captured\",\n  \"payload\": {\n    \"payment\": {\n      \"entity\": {\n        \"id\": \"pay_mock_webhook_123\",\n        \"order_id\": \"order_mock_webhook_456\",\n        \"amount\": 499900,\n        \"status\": \"captured\"\n      }\n    }\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhooks/razorpay",
+              "host": ["{{baseUrl}}"],
+              "path": ["webhooks", "razorpay"]
+            },
+            "description": "Asynchronous webhook endpoint for Razorpay payment notifications."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "7. Careers & Job Roles",
+      "item": [
+        {
+          "name": "Get Job Roles",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/career/job-roles",
+              "host": ["{{baseUrl}}"],
+              "path": ["career", "job-roles"]
+            },
+            "description": "Returns list of active career job roles with slugs and descriptions."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Job Role By Slug",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/career/job-roles/{{careerSlug}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["career", "job-roles", "{{careerSlug}}"]
+            },
+            "description": "Returns single job role details by slug (e.g. `data-analyst`, `full-stack-developer`)."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Filtered Careers (Paginated)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/careers?page=0&size=20&sortBy=displayOrder&sortDir=asc",
+              "host": ["{{baseUrl}}"],
+              "path": ["careers"],
+              "query": [
+                { "key": "search", "value": "", "disabled": true },
+                { "key": "category", "value": "AI & Data", "disabled": true },
+                { "key": "level", "value": "Beginner", "disabled": true },
+                { "key": "featured", "value": "true", "disabled": true },
+                { "key": "popular", "value": "true", "disabled": true },
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "20" },
+                { "key": "sortBy", "value": "displayOrder" },
+                { "key": "sortDir", "value": "asc" }
+              ]
+            },
+            "description": "Paginated and filterable career path catalog."
+          },
+          "response": []
+        },
+        {
+          "name": "Search Careers",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/careers/search?keyword=python&page=0&size=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["careers", "search"],
+              "query": [
+                { "key": "keyword", "value": "python" },
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "20" }
+              ]
+            },
+            "description": "Fast keyword search across career titles, skills, and categories."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Career By Slug",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/careers/slug/{{careerSlug}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["careers", "slug", "{{careerSlug}}"]
+            },
+            "description": "Returns full career pathway details including linked courses, roadmap, and salary insights."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Career By ID",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/careers/{{careerId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["careers", "{{careerId}}"]
+            },
+            "description": "Returns full career pathway details by numeric ID."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Career Categories",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/careers/categories",
+              "host": ["{{baseUrl}}"],
+              "path": ["careers", "categories"]
+            },
+            "description": "Returns distinct career categories available in the platform."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Career Stats",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/careers/{{careerId}}/stats",
+              "host": ["{{baseUrl}}"],
+              "path": ["careers", "{{careerId}}", "stats"]
+            },
+            "description": "Returns learner enrollment and completion statistics for a career track."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "8. Explore & Projects",
+      "item": [
+        {
+          "name": "Get Explore Data",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/explore",
+              "host": ["{{baseUrl}}"],
+              "path": ["explore"]
+            },
+            "description": "Returns curated lists of active, published careers and practical industry projects for the homepage."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Projects",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/projects?industry=",
+              "host": ["{{baseUrl}}"],
+              "path": ["projects"],
+              "query": [
+                { "key": "industry", "value": "", "description": "Optional industry filter" }
+              ]
+            },
+            "description": "Returns public list of active projects with tech stack and learning outcomes."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Project By Slug",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/projects/{{projectSlug}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["projects", "{{projectSlug}}"]
+            },
+            "description": "Returns comprehensive details for a specific project."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "9. Opportunities",
+      "item": [
+        {
+          "name": "Get Opportunities",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/opportunities",
+              "host": ["{{baseUrl}}"],
+              "path": ["opportunities"]
+            },
+            "description": "Returns job/internship opportunities list (requires authenticated user)."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "10. Certificates",
+      "item": [
+        {
+          "name": "Verify Certificate Publicly",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/certificates/verify/{{verificationCode}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["certificates", "verify", "{{verificationCode}}"]
+            },
+            "description": "Public certificate verification endpoint. Returns validation status, recipient name, course name, and issue date without leaking private credentials."
+          },
+          "response": []
+        },
+        {
+          "name": "Download Verified Certificate PDF",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/certificates/verify/{{verificationCode}}/download",
+              "host": ["{{baseUrl}}"],
+              "path": ["certificates", "verify", "{{verificationCode}}", "download"]
+            },
+            "description": "Generates and downloads official verification PDF certificate."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "11. System & Media",
+      "item": [
+        {
+          "name": "Service Health Check",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["health"]
+            },
+            "description": "Health probe endpoint. Returns `{ status: 'UP', service: 'ingage-backend', timestamp: '...' }`."
+          },
+          "response": []
+        },
+        {
+          "name": "Serve Uploaded Static File",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/uploads/profile-images/default-avatar.png",
+              "host": ["{{baseUrl}}"],
+              "path": ["uploads", "profile-images", "default-avatar.png"]
+            },
+            "description": "Serves public assets (profile-images, avatars, thumbnails, documents). Video category is strictly forbidden here to enforce protected range streaming."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "12. Admin Control Center (ROLE_ADMIN)",
+      "item": [
+        {
+          "name": "Dashboard & Analytics",
+          "item": [
+            {
+              "name": "Get Dashboard Metrics Overview",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/admin/dashboard",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["admin", "dashboard"]
+                },
+                "description": "Returns total users, published courses, total revenue, active enrollments, and completion ratios."
+              },
+              "response": []
+            },
+            {
+              "name": "Get Platform Analytics",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/admin/analytics",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["admin", "analytics"]
+                },
+                "description": "Returns monthly revenue charts, enrollment growth curves, and user acquisition breakdown."
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "User Management",
+          "item": [
+            {
+              "name": "Get All Users",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/admin/users?search=",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["admin", "users"],
+                  "query": [
+                    { "key": "search", "value": "" }
+                  ]
+                },
+                "description": "Lists all users with roles, enrollment counts, and account status."
+              },
+              "response": []
+            },
+            {
+              "name": "Get User Details",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/admin/users/{{userId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["admin", "users", "{{userId}}"]
+                },
+                "description": "Returns full user profile, enrollment history, and payment transactions."
+              },
+              "response": []
+            },
+            {
+              "name": "Update User Active Status",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"active\": true\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/admin/users/{{userId}}/status",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["admin", "users", "{{userId}}", "status"]
+                },
+                "description": "Activates or suspends user account access."
+              },
+              "response": []
+            },
+            {
+              "name": "Update User Role",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"role\": \"ADMIN\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/admin/users/{{userId}}/role",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["admin", "users", "{{userId}}", "role"]
+                },
+                "description": "Updates user permission level (e.g. STUDENT, INSTRUCTOR, ADMIN)."
+              },
+              "response": []
+            },
+            {
+              "name": "Delete or Deactivate User",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/admin/users/{{userId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["admin", "users", "{{userId}}"]
+                },
+                "description": "Safely deactivates or removes user account based on enrollment history."
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Course & Curriculum Management",
+          "item": [
+            {
+              "name": "Get Admin Courses",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/admin/courses?status=ALL&search=",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["admin", "courses"],
+                  "query": [
+                    { "key": "status", "value": "ALL" },
+                    { "key": "search", "value": "" }
+                  ]
+                },
+                "description": "Returns full list of courses with status (DRAFT, PUBLISHED, ARCHIVED), enrollment count, and revenue."
+              },
+              "response": []
+            },
+            {
+              "name": "Get Admin Course By ID",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/admin/courses/{{courseId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["admin", "courses", "{{courseId}}"]
+                },
+                "description": "Returns complete course details including all nested sections and lessons."
+              },
+              "response": []
+            },
+            {
+              "name": "Create Course",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Advanced Artificial Intelligence Mastery\",\n  \"slug\": \"advanced-ai-mastery\",\n  \"description\": \"Master LLMs, neural networks, and agentic workflows with hands-on projects.\",\n  \"category\": \"Artificial Intelligence\",\n  \"level\": \"Advanced\",\n  \"duration\": \"14 Weeks\",\n  \"price\": 7999,\n  \"originalPrice\": 14999,\n  \"instructor\": \"Dr. Aris Thorne\",\n  \"instructorBio\": \"Principal AI Scientist\",\n  \"thumbnail\": \"/uploads/thumbnails/ai-mastery.jpg\",\n  \"skillsCovered\": [\"PyTorch\", \"LangChain\", \"Vector Databases\", \"FastAPI\"],\n  \"learningOutcomes\": [\"Build production RAG pipelines\", \"Fine-tune foundational models\"]\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/admin/courses",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["admin", "courses"]
+                },
+                "description": "Creates a new course in DRAFT status."
+              },
+              "response": []
+            },
+            {
+              "name": "Update Course",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Advanced AI Mastery (2026 Edition)\",\n  \"price\": 6999\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/admin/courses/{{courseId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["admin", "courses", "{{courseId}}"]
+                },
+                "description": "Updates course details."
+              },
+              "response": []
+            },
+            {
+              "name": "Publish Course",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/admin/courses/{{courseId}}/publish",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["admin", "courses", "{{courseId}}", "publish"]
+                },
+                "description": "Sets course status to PUBLISHED making it visible in public catalog."
+              },
+              "response": []
+            },
+            {
+              "name": "Unpublish Course",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/admin/courses/{{courseId}}/unpublish",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["admin", "courses", "{{courseId}}", "unpublish"]
+                },
+                "description": "Reverts course status back to DRAFT."
+              },
+              "response": []
+            },
+            {
+              "name": "Archive Course",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/admin/courses/{{courseId}}/archive",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["admin", "courses", "{{courseId}}", "archive"]
+                },
+                "description": "Archives course."
+              },
+              "response": []
+            },
+            {
+              "name": "Delete Course",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/admin/courses/{{courseId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["admin", "courses", "{{courseId}}"]
+                },
+                "description": "Deletes course if no active enrollments exist."
+              },
+              "response": []
+            },
+            {
+              "name": "Add Section to Course",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Section 1: Architecture Overview\",\n  \"orderIndex\": 1\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/admin/courses/{{courseId}}/sections",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["admin", "courses", "{{courseId}}", "sections"]
+                },
+                "description": "Adds a new curriculum section module to a course."
+              },
+              "response": []
+            },
+            {
+              "name": "Update Section",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Section 1: Modern LLM Architecture\",\n  \"orderIndex\": 1\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/admin/sections/{{sectionId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["admin", "sections", "{{sectionId}}"]
+                },
+                "description": "Updates section title or ordering."
+              },
+              "response": []
+            },
+            {
+              "name": "Delete Section",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/admin/sections/{{sectionId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["admin", "sections", "{{sectionId}}"]
+                },
+                "description": "Deletes section and its contained lessons."
+              },
+              "response": []
+            },
+            {
+              "name": "Add Lesson to Section",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Lesson 1.1: Foundations of Attention Mechanisms\",\n  \"duration\": \"18:45\",\n  \"freePreview\": true,\n  \"orderIndex\": 1,\n  \"videoUrl\": \"uploads/videos/attention.mp4\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/admin/sections/{{sectionId}}/lessons",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["admin", "sections", "{{sectionId}}", "lessons"]
+                },
+                "description": "Adds lesson with optional video URL and preview settings."
+              },
+              "response": []
+            },
+            {
+              "name": "Update Lesson",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Lesson 1.1: Deep Dive into Multi-Head Attention\",\n  \"duration\": \"22:10\",\n  \"freePreview\": true\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/admin/lessons/{{lessonId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["admin", "lessons", "{{lessonId}}"]
+                },
+                "description": "Updates lesson attributes."
+              },
+              "response": []
+            },
+            {
+              "name": "Delete Lesson",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/admin/lessons/{{lessonId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["admin", "lessons", "{{lessonId}}"]
+                },
+                "description": "Deletes lesson."
+              },
+              "response": []
+            },
+            {
+              "name": "Get Course Analytics",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/admin/courses/{{courseId}}/analytics",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["admin", "courses", "{{courseId}}", "analytics"]
+                },
+                "description": "Returns enrollment rate, completion rate, and average score for a course."
+              },
+              "response": []
+            },
+            {
+              "name": "Get Course Enrolled Students",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/admin/courses/{{courseId}}/students",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["admin", "courses", "{{courseId}}", "students"]
+                },
+                "description": "Returns list of enrolled students with progress percentage and status."
+              },
+              "response": []
+            },
+            {
+              "name": "Get Course Categories",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/admin/categories",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["admin", "categories"]
+                },
+                "description": "Returns all configured course categories."
+              },
+              "response": []
+            },
+            {
+              "name": "Create Course Category",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Cybersecurity & DevSecOps\",\n  \"slug\": \"cybersecurity-devsecops\",\n  \"displayOrder\": 5\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/admin/categories",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["admin", "categories"]
+                },
+                "description": "Creates a new category for tagging courses."
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Payment & Order Audits",
+          "item": [
+            {
+              "name": "Get All Platform Payments",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/admin/payments",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["admin", "payments"]
+                },
+                "description": "Returns comprehensive ledger of all transactions, statuses, and razorpay payment IDs."
+              },
+              "response": []
+            },
+            {
+              "name": "Get All Platform Orders",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/admin/orders",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["admin", "orders"]
+                },
+                "description": "Returns all generated Razorpay checkout order records."
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Discount & Coupon Management",
+          "item": [
+            {
+              "name": "Get All Discounts",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/admin/discounts",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["admin", "discounts"]
+                },
+                "description": "Lists all platform coupon codes and limits."
+              },
+              "response": []
+            },
+            {
+              "name": "Create Discount Coupon",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"couponCode\": \"SUPER50\",\n  \"discountPercentage\": 50,\n  \"maxDiscountAmount\": 2500,\n  \"minPurchaseAmount\": 2000,\n  \"usageLimit\": 500,\n  \"validUntil\": \"2026-12-31T23:59:59Z\",\n  \"active\": true\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/admin/discounts",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["admin", "discounts"]
+                },
+                "description": "Creates promotional coupon code."
+              },
+              "response": []
+            },
+            {
+              "name": "Update Discount Coupon",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"discountPercentage\": 40,\n  \"maxDiscountAmount\": 2000\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/admin/discounts/{{discountId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["admin", "discounts", "{{discountId}}"]
+                },
+                "description": "Updates discount percentage or terms."
+              },
+              "response": []
+            },
+            {
+              "name": "Toggle Discount Active Status",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"active\": true\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/admin/discounts/{{discountId}}/status",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["admin", "discounts", "{{discountId}}", "status"]
+                },
+                "description": "Enables or disables discount coupon."
+              },
+              "response": []
+            },
+            {
+              "name": "Delete Discount",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/admin/discounts/{{discountId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["admin", "discounts", "{{discountId}}"]
+                },
+                "description": "Deletes coupon code."
+              },
+              "response": []
+            },
+            {
+              "name": "Get Discount Analytics",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/admin/discounts/analytics",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["admin", "discounts", "analytics"]
+                },
+                "description": "Returns redemption statistics and total discount value applied across orders."
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Learner Progress Monitoring",
+          "item": [
+            {
+              "name": "Get Learner Progress Records",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/admin/progress?status=ALL&search=",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["admin", "progress"],
+                  "query": [
+                    { "key": "status", "value": "ALL" },
+                    { "key": "search", "value": "" },
+                    { "key": "courseId", "value": "1", "disabled": true }
+                  ]
+                },
+                "description": "Monitors all student completion rates and activity across courses."
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Certificate Administration",
+          "item": [
+            {
+              "name": "Get All Issued Certificates",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/admin/certificates",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["admin", "certificates"]
+                },
+                "description": "Returns list of all issued credentials with verification codes and recipient details."
+              },
+              "response": []
+            },
+            {
+              "name": "Download Certificate PDF By ID",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/admin/certificates/1/download",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["admin", "certificates", "1", "download"]
+                },
+                "description": "Downloads official PDF certificate generated by the system."
+              },
+              "response": []
+            },
+            {
+              "name": "Issue Certificate Manually",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"userId\": \"{{userId}}\",\n  \"courseId\": {{courseId}}\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/admin/certificates/issue",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["admin", "certificates", "issue"]
+                },
+                "description": "Manually issues and signs an official certificate for a student who completed coursework."
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Career Management",
+          "item": [
+            {
+              "name": "Get All Admin Careers",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/admin/careers",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["admin", "careers"]
+                },
+                "description": "Lists all career paths including draft/unpublished tracks."
+              },
+              "response": []
+            },
+            {
+              "name": "Create Career Track",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Cloud Solutions Architect\",\n  \"slug\": \"cloud-solutions-architect\",\n  \"category\": \"Cloud Computing\",\n  \"level\": \"Advanced\",\n  \"duration\": \"6 Months\",\n  \"summary\": \"Architect resilient multi-region cloud infrastructures on AWS and GCP.\",\n  \"salaryRange\": \"$140k - $190k\",\n  \"active\": true,\n  \"published\": true,\n  \"displayOrder\": 3\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/admin/careers",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["admin", "careers"]
+                },
+                "description": "Creates a new career pathway."
+              },
+              "response": []
+            },
+            {
+              "name": "Update Career Track",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"salaryRange\": \"$150k - $210k\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/admin/careers/{{careerId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["admin", "careers", "{{careerId}}"]
+                },
+                "description": "Updates career path attributes."
+              },
+              "response": []
+            },
+            {
+              "name": "Toggle Career Publish",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"published\": true\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/admin/careers/{{careerId}}/publish",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["admin", "careers", "{{careerId}}", "publish"]
+                },
+                "description": "Publishes or unpublishes career from public catalog."
+              },
+              "response": []
+            },
+            {
+              "name": "Toggle Career Active Status",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"active\": true\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/admin/careers/{{careerId}}/status",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["admin", "careers", "{{careerId}}", "status"]
+                },
+                "description": "Activates or deactivates career pathway."
+              },
+              "response": []
+            },
+            {
+              "name": "Assign Course to Career",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/admin/careers/{{careerId}}/assign-course/{{courseId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["admin", "careers", "{{careerId}}", "assign-course", "{{courseId}}"]
+                },
+                "description": "Links a curriculum course to the career path roadmap."
+              },
+              "response": []
+            },
+            {
+              "name": "Remove Course from Career",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/admin/careers/{{careerId}}/remove-course/{{courseId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["admin", "careers", "{{careerId}}", "remove-course", "{{courseId}}"]
+                },
+                "description": "Unlinks course from career path."
+              },
+              "response": []
+            },
+            {
+              "name": "Delete Career Track",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/admin/careers/{{careerId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["admin", "careers", "{{careerId}}"]
+                },
+                "description": "Deletes career track."
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Project Management",
+          "item": [
+            {
+              "name": "Get All Admin Projects",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/admin/projects",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["admin", "projects"]
+                },
+                "description": "Lists all projects in the system."
+              },
+              "response": []
+            },
+            {
+              "name": "Create Project",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Distributed Payment Orchestration Engine\",\n  \"slug\": \"distributed-payment-orchestrator\",\n  \"category\": \"FinTech\",\n  \"industry\": \"Banking & Financial Services\",\n  \"difficulty\": \"Advanced\",\n  \"duration\": \"4 Weeks\",\n  \"description\": \"Design an idempotent transaction processor with distributed locking and ledger reconciliation.\",\n  \"techStack\": [\"Java 21\", \"Spring Boot 3\", \"PostgreSQL\", \"Kafka\", \"Redis\"],\n  \"skillsLearned\": [\"Two-phase commit\", \"Event sourcing\", \"Idempotency keys\"],\n  \"whatYouWillBuild\": [\"Transaction consumer microservice\", \"Reconciliation reporting dashboard\"],\n  \"learningOutcomes\": [\"Production-ready financial ledger design\", \"High-throughput messaging concurrency\"],\n  \"active\": true,\n  \"published\": true,\n  \"displayOrder\": 1\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/admin/projects",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["admin", "projects"]
+                },
+                "description": "Creates a new capstone project."
+              },
+              "response": []
+            },
+            {
+              "name": "Update Project",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"duration\": \"5 Weeks\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/admin/projects/{{projectId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["admin", "projects", "{{projectId}}"]
+                },
+                "description": "Updates project details."
+              },
+              "response": []
+            },
+            {
+              "name": "Toggle Project Status",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"active\": true\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/admin/projects/{{projectId}}/status",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["admin", "projects", "{{projectId}}", "status"]
+                },
+                "description": "Activates or deactivates project."
+              },
+              "response": []
+            },
+            {
+              "name": "Toggle Project Publish",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"published\": true\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/admin/projects/{{projectId}}/publish",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["admin", "projects", "{{projectId}}", "publish"]
+                },
+                "description": "Publishes or unpublishes project."
+              },
+              "response": []
+            },
+            {
+              "name": "Delete Project",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/admin/projects/{{projectId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["admin", "projects", "{{projectId}}"]
+                },
+                "description": "Deletes project record."
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Activity Logs & Media Upload",
+          "item": [
+            {
+              "name": "Get Recent Activity Logs",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/admin/activity",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["admin", "activity"]
+                },
+                "description": "Audits all administrative mutations with timestamp, actor, IP address, and details."
+              },
+              "response": []
+            },
+            {
+              "name": "Upload Media Asset (Admin)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+                ],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "file",
+                      "type": "file",
+                      "description": "Asset file to upload"
+                    },
+                    {
+                      "key": "category",
+                      "value": "thumbnails",
+                      "type": "text",
+                      "description": "Category folder (thumbnails, documents, video)"
+                    }
+                  ]
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/admin/media/upload",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["admin", "media", "upload"]
+                },
+                "description": "Administrative file upload service."
+              },
+              "response": []
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080/api",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "adminToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "courseId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "sectionId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "lessonId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "orderId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "userId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "careerSlug",
+      "value": "data-analyst",
+      "type": "string"
+    },
+    {
+      "key": "careerId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "projectSlug",
+      "value": "enterprise-rag-assistant",
+      "type": "string"
+    },
+    {
+      "key": "projectId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "discountId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "verificationCode",
+      "value": "ING-2026-CERT-DEMO",
+      "type": "string"
+    }
+  ]
+}

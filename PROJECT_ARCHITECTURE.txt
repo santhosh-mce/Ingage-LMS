@@ -1,0 +1,572 @@
+================================================================================
+                    INGAGE LMS - FULL SYSTEM ARCHITECTURE DETAILS
+================================================================================
+Generated for: Ingage LMS Platform
+Architecture Version: 2.0 (Consolidated & Production-Ready)
+Single Source of Truth: PostgreSQL Database
+================================================================================
+
+TABLE OF CONTENTS
+--------------------------------------------------------------------------------
+1. EXECUTIVE SUMMARY & HIGH-LEVEL ARCHITECTURE
+2. TECHNOLOGY STACK SPECIFICATION
+3. DIRECTORY TREE & PROJECT STRUCTURE
+4. FRONTEND ARCHITECTURE (REACT + TYPESCRIPT)
+   4.1 State Management (Redux Toolkit & Slice Design)
+   4.2 Routing Architecture, Role Guards & Access Levels
+   4.3 Component Hierarchy & Layout System
+   4.4 Axios API Layer, Token Injection & Origin Resolution
+5. BACKEND ARCHITECTURE (SPRING BOOT 3 + JAVA 26)
+   5.1 Layered Architecture Pattern
+   5.2 Spring Security, JWT & OAuth2 Workflow
+   5.3 Transaction Boundaries & Hibernate Session Management
+   5.4 Global Exception Handling & Error Standard
+6. DATABASE ARCHITECTURE & SCHEMA CATALOG (POSTGRESQL)
+   6.1 Entity Matrix & Relationships
+   6.2 Indexes & Optimization
+7. CORE FUNCTIONAL WORKFLOWS & DATA FLOWS
+   7.1 Authentication, OTP & Email Verification Flow
+   7.2 Course Creation, Publishing & Curriculum Pipeline
+   7.3 Secure Video Streaming & Piracy Deterrence Pipeline
+   7.4 Razorpay Payment, Webhook Verification & Enrollment Provisioning
+   7.5 PDF Certificate Generation & Verification Engine
+   7.6 Career Roadmap & Job Role Engine
+   7.7 Opportunities & Applications Engine
+   7.8 Project Tracks & Capstone Engine
+   7.9 Admin Control Plane, Audit Logs & System Settings
+8. ENVIRONMENT CONFIGURATION & SETUP CHEAT SHEET
+9. COMPREHENSIVE REST API REGISTRY
+
+================================================================================
+1. EXECUTIVE SUMMARY & HIGH-LEVEL ARCHITECTURE
+================================================================================
+
+Ingage LMS is an enterprise-grade, full-stack Learning Management Platform
+engineered for modern digital skills, career roadmaps, job opportunities, and
+hands-on industry projects.
+
+The platform follows a decoupled, stateless Client-Server Architecture:
+
+  +------------------------------------------------------------------------+
+  |                                CLIENT                                  |
+  |  React 18 + TypeScript + Vite + Tailwind CSS + Redux Toolkit          |
+  |  - Learner Portal                                                      |
+  |  - Career & Opportunity Explorer                                       |
+  |  - Project Workspace                                                   |
+  |  - Video Player with Dynamic Anti-Piracy Watermarking                  |
+  |  - Admin Control Plane                                                 |
+  +-----------------------------------+------------------------------------+
+                                      |
+                           HTTPS REST / JSON / Streams
+                           Bearer JWT / HttpOnly Cookie
+                                      |
+  +-----------------------------------v------------------------------------+
+  |                                GATEWAY                                 |
+  |  Spring Security 6 Filter Chain                                        |
+  |  - JwtAuthenticationFilter                                             |
+  |  - OAuth2 Login (Google / LinkedIn)                                    |
+  |  - CORS & Security Headers                                             |
+  +-----------------------------------+------------------------------------+
+                                      |
+  +-----------------------------------v------------------------------------+
+  |                           BACKEND SERVICES                             |
+  |  Spring Boot 3 (Java 26 / Maven)                                       |
+  |  - Auth & User Service (BCrypt, OTP Engine, Email Verification)       |
+  |  - Course & Curriculum Service                                          |
+  |  - Chunked Video Streamer (HTTP 206 Partial Content)                  |
+  |  - Razorpay Payment Engine (HMAC-SHA256 Signatures)                   |
+  |  - Certificate Engine (OpenPDF dynamic vector generation)              |
+  |  - Career & Opportunity Service                                        |
+  |  - Projects & Capstone Service (Batch-Fetched Element Collections)    |
+  |  - Admin Activity Audit Logger                                         |
+  +-----------------------------------+------------------------------------+
+                                      |
+                          Spring Data JPA / Hibernate
+                               HikariCP Pool
+                                      |
+  +-----------------------------------v------------------------------------+
+  |                           DATA STORAGE                                 |
+  |  PostgreSQL Database (Single Source of Truth)                          |
+  |  - Relational tables, Foreign Key cascades                             |
+  |  - B-Tree compound indexes on queries & slugs                          |
+  |  - Local File System / S3 bucket for video chunks and profile images   |
+  +------------------------------------------------------------------------+
+
+================================================================================
+2. TECHNOLOGY STACK SPECIFICATION
+================================================================================
+
+[ FRONTEND ]
+* Framework: React 18.3+ with TypeScript
+* Build Tool & Dev Server: Vite 6
+* State Management: Redux Toolkit (RTK) + React Context + Local Storage
+* Styling: Tailwind CSS 3.4+ & Custom CSS Tokens (index.css)
+* UI Icons & Motion: Lucide React, Framer Motion (motion/react)
+* HTTP Client: Axios 1.7+ with Request/Response Interceptors
+* Sanitization: DOMPurify (for rich-text rendering)
+
+[ BACKEND ]
+* Framework: Spring Boot 3.4.x / Spring 6
+* Language: Java 26 (LTS compatible, modern record types & switch patterns)
+* Security: Spring Security 6, JJWT 0.12.6, Spring OAuth2 Client
+* Persistence: Spring Data JPA, Hibernate 7 (ORM), HikariCP (Connection Pool)
+* PDF Engine: OpenPDF 2.0.3 (LibrePDF vector certificate rendering)
+* Templating: Thymeleaf (Email templates & verification mailings)
+* Payment SDK: Razorpay Java Client 1.4+
+* Validation: Jakarta Bean Validation (Hibernate Validator)
+* Build System: Apache Maven (Wrapper included: mvnw / mvnw.cmd)
+
+[ DATABASE & STORAGE ]
+* Primary DB: PostgreSQL 14+
+* Connection URL: jdbc:postgresql://localhost:5432/lms_db
+* Dialect: PostgreSQLDialect
+* File Storage: Local filesystem (`uploads/`) with public endpoint `/api/uploads/**`
+
+================================================================================
+3. DIRECTORY TREE & PROJECT STRUCTURE
+================================================================================
+
+d:\Ingage project\
+├── Backend/                               # Spring Boot Backend Project Root
+│   ├── pom.xml                            # Maven dependencies & build plugins
+│   ├── mvnw / mvnw.cmd                    # Maven wrapper scripts
+│   ├── src/
+│   │   ├── main/
+│   │   │   ├── java/com/lms/Backend/
+│   │   │   │   ├── BackendApplication.java# Spring Boot Application entrypoint
+│   │   │   │   ├── admin/                 # Admin controllers, services & DTOs
+│   │   │   │   │   ├── controller/        # Admin endpoints (courses, users, etc.)
+│   │   │   │   │   ├── dto/               # Admin aggregation responses
+│   │   │   │   │   └── service/           # Admin business logic & audit logger
+│   │   │   │   ├── auth/                  # Authentication, OTP, OAuth2 & JWT
+│   │   │   │   │   ├── controller/        # AuthController (login, register, otp)
+│   │   │   │   │   ├── dto/               # LoginRequest, RegisterRequest, AuthResponse
+│   │   │   │   │   ├── entity/            # OtpVerification entity
+│   │   │   │   │   ├── repository/        # OtpVerificationRepository
+│   │   │   │   │   ├── security/          # JwtService, JwtAuthenticationFilter
+│   │   │   │   │   └── service/           # AuthService, CustomOAuth2UserService
+│   │   │   │   ├── career/                # Career paths & Job role domain
+│   │   │   │   ├── certificate/           # Certificate generator & verifier
+│   │   │   │   ├── common/                # Shared utilities & GlobalExceptionHandler
+│   │   │   │   ├── config/                # SecurityConfig, CorsConfig, WebMvcConfig
+│   │   │   │   ├── course/                # Courses, Modules, Lessons & Quizzes
+│   │   │   │   ├── discount/              # Coupon codes & discount logic
+│   │   │   │   ├── enrollment/            # Enrollment records & course progress
+│   │   │   │   ├── explore/               # Public exploration controllers
+│   │   │   │   ├── opportunity/           # Internships, full-time jobs, challenges
+│   │   │   │   ├── payment/               # Razorpay order creation & webhook
+│   │   │   │   ├── project/               # Project capstones, tracks & element lists
+│   │   │   │   └── user/                  # User entity, UserRepository & UserController
+│   │   │   └── resources/
+│   │   │       ├── application.properties # Main Spring Boot properties
+│   │   │       └── static/ & templates/   # Thymeleaf email templates
+├── frontend/                              # Vite + React Frontend Project Root
+│   ├── package.json                       # Dependencies & scripts
+│   ├── vite.config.ts                     # Vite build configuration
+│   ├── tsconfig.json                      # TypeScript strict compiler config
+│   ├── tailwind.config.js                 # Tailwind design theme & colors
+│   ├── .env                               # Environment file (VITE_API_BASE_URL)
+│   ├── src/
+│   │   ├── App.tsx                        # Master Router & App state coordinator
+│   │   ├── index.css                      # Global design system & theme tokens
+│   │   ├── admin/                         # Admin Portal
+│   │   │   ├── AdminLayout.tsx            # Shell with sidebar & topbar
+│   │   │   ├── AdminSidebar.tsx           # Admin navigation tree
+│   │   │   ├── AdminHeader.tsx            # Notifications & user badge
+│   │   │   └── pages/                     # 18 Admin pages (Users, Courses, etc.)
+│   │   ├── api/                           # Axios API Client Modules
+│   │   │   ├── adminApi.ts                # Admin backend endpoints
+│   │   │   ├── authApi.ts                 # Login, Register, OTP, User profile
+│   │   │   ├── careerApi.ts               # Career paths & roles
+│   │   │   ├── courseApi.ts               # Course catalog & curriculum
+│   │   │   ├── exploreApi.ts              # Public projects & exploration
+│   │   │   ├── paymentApi.ts              # Razorpay checkout & history
+│   │   │   └── quizApi.ts                 # Quiz submission & grading
+│   │   ├── components/                    # Reusable components (Navbar, Modals, etc.)
+│   │   ├── pages/                         # Learner-facing application pages
+│   │   │   ├── LandingPage.tsx            # Hero, features, course highlights
+│   │   │   ├── CoursesPage.tsx            # Filterable course directory
+│   │   │   ├── CourseDetailPage.tsx       # Syllabus, preview video, enrollment CTA
+│   │   │   ├── CourseLearnPage.tsx        # Video player, syllabus, watermarking
+│   │   │   ├── CareersPage.tsx            # Career explorer & salary insights
+│   │   │   ├── CareerDetailPage.tsx       # Roadmap steps, skills, related courses
+│   │   │   ├── OpportunitiesPage.tsx      # Job board, filters, applications
+│   │   │   ├── ProjectsPage.tsx           # Industry capstone projects
+│   │   │   ├── VerifyOtpPage.tsx          # 6-digit OTP countdown verification
+│   │   │   ├── OAuthCallbackPage.tsx      # Social auth redirect handler
+│   │   │   ├── CertificateDetailPage.tsx # Printable digital certificate
+│   │   │   └── CertificateVerificationPage.tsx # Public certificate validator
+│   │   ├── store/                         # Redux Store & Async Thunks
+│   │   └── types/                         # TypeScript interfaces & DTO definitions
+└── PROJECT_ARCHITECTURE.txt               # This architectural reference file
+
+================================================================================
+4. FRONTEND ARCHITECTURE (REACT + TYPESCRIPT)
+================================================================================
+
+4.1 State Management (Redux Toolkit)
+------------------------------------
+The frontend uses Redux Toolkit to manage centralized state across the app:
+* `authSlice`:
+  - Stores: `user` (profile details, role, email), `token` (JWT string), `isAuthenticated`, `isLoading`, `error`.
+  - Actions: `loginSuccess`, `logout`, `updateUserProfile`, `setAuthLoading`.
+  - Persistence: Persists active JWT token in `localStorage.getItem('ingage_token')`.
+* `courseSlice`:
+  - Manages active course catalogs, category filters, search keywords, and active course learning progress.
+* `careerSlice`:
+  - Asynchronously loads career pathways and job roles from `/api/careers`.
+* `opportunitySlice`:
+  - Asynchronously loads open internships, bounties, and full-time positions from `/api/opportunities`.
+
+4.2 Routing Architecture, Role Guards & Access Levels
+------------------------------------------------------
+Navigation is coordinated cleanly via [App.tsx] with browser History API synchronization:
+* Public Visitor Routes:
+  - `/` (Landing Page)
+  - `/courses`, `/courses/:id` (Catalog & Course Detail)
+  - `/careers`, `/careers/:slug` (Career Exploration & Roadmaps)
+  - `/opportunities` (Open Opportunities & Jobs)
+  - `/projects` (Hands-on Capstones)
+  - `/certificate/verify/:code` (Public credential validator)
+  - `/verify-otp`, `/verify-email` (Account validation)
+* Protected Learner Routes (Requires `STUDENT`, `INSTRUCTOR`, or `ADMIN`):
+  - `/learn/:courseId/:lessonId` (Video classroom & lesson player)
+  - `/profile`, `/profile/enrolled`, `/my-payments`
+  - `/certificates/:id` (Earned credentials)
+  - `/payment/success`, `/payment/failed`
+* Protected Admin Routes (Requires `ADMIN` role):
+  - `/admin` (System Overview & KPI Dashboard)
+  - `/admin/courses`, `/admin/courses/new`, `/admin/courses/:id/edit`
+  - `/admin/categories` (Taxonomy & tags)
+  - `/admin/users` (Learner accounts & bulk status)
+  - `/admin/instructors` (Instructor accounts & assigned courses)
+  - `/admin/progress` (Learner curriculum tracking)
+  - `/admin/payments` (Transaction logs & refund actions)
+  - `/admin/orders` (Commerce orders)
+  - `/admin/discounts` (Coupons & campaigns)
+  - `/admin/certificates` (Issued credentials)
+  - `/admin/careers`, `/admin/opportunities`, `/admin/projects` (Content hubs)
+  - `/admin/activity` (Audit trail of administrative actions)
+  - `/admin/settings` (Platform preferences & SMTP/Razorpay keys)
+
+4.3 Component Hierarchy & Layout System
+---------------------------------------
+* Learner Views: Encapsulated by `<Navbar />` (dynamic authentication state, avatar dropdown, search trigger) and `<Footer />`.
+* Admin Views: Encapsulated by `<AdminLayout />`, composed of:
+  - `<AdminSidebar />`: Collapsible navigation grouping courses, users, commerce, content, and system logs.
+  - `<AdminHeader />`: Notification center, search bar, active user profile pill, and one-click logout.
+* Dynamic Modals: `<AuthModal />` (supports login, registration, password recovery, demo quick-fill, and social login triggers).
+
+4.4 Axios API Layer & Interceptors
+----------------------------------
+All client modules (`authApi.ts`, `courseApi.ts`, `adminApi.ts`, etc.) create dedicated Axios instances:
+* Default Base URL: `import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api'`
+* Request Interceptor: Automatically inspects `localStorage.getItem('ingage_token')` and injects `Authorization: Bearer <token>`.
+* Response Interceptor: Standardizes error extraction from backend payloads (`{ error: string, message: string }`).
+
+================================================================================
+5. BACKEND ARCHITECTURE (SPRING BOOT 3 + JAVA 26)
+================================================================================
+
+5.1 Layered Architecture Pattern
+--------------------------------
+The backend strictly adheres to the standard 4-layer enterprise pattern:
+1. Controller Layer (`@RestController`):
+   - Maps HTTP endpoints, validates payload constraints (`@Valid`), enforces authorization (`@PreAuthorize`).
+2. Service Layer (`@Service`):
+   - Encapsulates core business transactions (`@Transactional`), manages DTO conversions, orchestrates secondary actions (logging, notifications).
+3. Repository Layer (`@Repository`):
+   - Extends `JpaRepository<T, ID>`, executes optimized JPQL queries, implements pagination and locking where necessary.
+4. Entity Layer (`@Entity`):
+   - JPA / Hibernate mapping to PostgreSQL tables. Uses optimistic locking, audit timestamps (`@PrePersist`, `@PreUpdate`), and typed enums.
+
+5.2 Spring Security, JWT & OAuth2 Workflow
+------------------------------------------
+Security is configured in `SecurityConfig.java`:
+* Stateless Sessions: `SessionCreationPolicy.STATELESS` ensures scalable, horizontal execution.
+* Custom JWT Filter: `JwtAuthenticationFilter` reads the `Authorization: Bearer <token>` header or `AUTH_TOKEN` cookie on every incoming request.
+* Claims Extracted: Subject (email), expiration timestamp, and roles.
+* OAuth2 Integration:
+  - Supports Google & LinkedIn OAuth2 providers via Spring Security OAuth2 Client.
+  - Upon successful provider verification, `CustomOAuth2UserService` looks up or registers the user and redirects to `/oauth/callback?token=<jwt>`.
+
+5.3 Transaction Boundaries & Hibernate Session Management
+---------------------------------------------------------
+* All database mutation methods are explicitly protected by `@Transactional`.
+* Read-only methods (e.g. `getAllProjectsAdmin()`) use `@Transactional(readOnly = true)`.
+* Element collections (e.g., `whatYouWillBuild`, `techStack`) are configured with `@BatchSize(size = 25)` to eliminate LazyInitializationException and prevent N+1 query storms.
+
+5.4 Global Exception Handling & Error Standard
+----------------------------------------------
+`GlobalExceptionHandler` captures exceptions across all controllers:
+* `ResourceNotFoundException` -> HTTP 404 (Entity not found)
+* `MethodArgumentNotValidException` -> HTTP 400 (Field validation errors mapped to key-value pairs)
+* `IllegalArgumentException` / `IllegalStateException` -> HTTP 400 (Business logic rejections)
+* `AccessDeniedException` -> HTTP 403 (Insufficient permissions)
+* Uncaught `Exception` -> HTTP 500 (Detailed trace logged; clean response returned to client)
+
+================================================================================
+6. DATABASE ARCHITECTURE & SCHEMA CATALOG (POSTGRESQL)
+================================================================================
+
+6.1 Entity Matrix & Relationships
+---------------------------------
+
+1. USERS (`users`)
+   - Primary Key: `id` (BIGINT, Auto-increment)
+   - Fields: `name`, `email` (UNIQUE), `password_hash`, `role` (STUDENT, INSTRUCTOR, ADMIN, EMPLOYER),
+             `provider` (LOCAL, GOOGLE, LINKEDIN), `provider_id`, `profile_image`, `phone`,
+             `is_active`, `is_email_verified`, `created_at`, `updated_at`, `last_login`
+   - Relations: One-to-Many with Enrollments, Payments, Certificates, QuizSubmissions.
+
+2. OTP VERIFICATIONS (`otp_verifications`)
+   - Primary Key: `id` (UUID)
+   - Fields: `email`, `otp_hash`, `purpose` (LOGIN, EMAIL_VERIFICATION, PASSWORD_RESET),
+             `expires_at`, `attempt_count`, `used`, `created_at`, `last_resent_at`
+   - Index: Compound index on `(email, purpose)`.
+
+3. COURSES (`courses`)
+   - Primary Key: `id` (BIGINT)
+   - Fields: `title`, `slug` (UNIQUE), `description`, `short_description`, `price`, `sale_price`,
+             `category_id`, `instructor_id`, `thumbnail_url`, `preview_video_url`, `difficulty_level`,
+             `duration_hours`, `published`, `featured`, `created_at`, `updated_at`
+   - Relations:
+     * Many-to-One with Categories (`category_id`)
+     * Many-to-One with Users (`instructor_id`)
+     * One-to-Many with Modules (CASCADE ALL)
+
+4. MODULES (`course_modules`)
+   - Primary Key: `id` (BIGINT)
+   - Fields: `course_id`, `title`, `description`, `order_index`, `created_at`
+   - Relations:
+     * Many-to-One with Courses
+     * One-to-Many with Lessons (CASCADE ALL)
+
+5. LESSONS (`lessons`)
+   - Primary Key: `id` (BIGINT)
+   - Fields: `module_id`, `title`, `content`, `video_url`, `duration_minutes`, `order_index`,
+             `is_free_preview`, `created_at`
+   - Relations: Many-to-One with Modules.
+
+6. QUIZZES & QUESTIONS (`quizzes`, `quiz_questions`)
+   - Primary Key: `id` (BIGINT)
+   - Fields: `lesson_id`, `title`, `passing_score`, `time_limit_minutes`
+   - Relations: One-to-One with Lessons, One-to-Many with Questions.
+
+7. ENROLLMENTS (`enrollments`)
+   - Primary Key: `id` (BIGINT)
+   - Fields: `user_id`, `course_id`, `payment_id`, `enrolled_at`, `completed_at`,
+             `progress_percentage`, `status` (ACTIVE, COMPLETED, CANCELLED)
+   - Unique Constraint: `(user_id, course_id)`
+
+8. LESSON PROGRESS (`lesson_progress`)
+   - Primary Key: `id` (BIGINT)
+   - Fields: `enrollment_id`, `lesson_id`, `completed`, `watch_time_seconds`, `completed_at`
+   - Unique Constraint: `(enrollment_id, lesson_id)`
+
+9. PAYMENTS & ORDERS (`payments`, `orders`)
+   - Primary Key: `id` (BIGINT)
+   - Fields: `user_id`, `razorpay_order_id`, `razorpay_payment_id`, `amount`, `currency`,
+             `status` (CREATED, AUTHORIZED, CAPTURED, FAILED, REFUNDED), `created_at`
+   - Relations: Many-to-One with Users, One-to-Many with Enrollments.
+
+10. CERTIFICATES (`certificates`)
+    - Primary Key: `id` (BIGINT)
+    - Fields: `certificate_code` (UNIQUE UUID), `user_id`, `course_id`, `issue_date`,
+              `recipient_name`, `course_title`, `verification_url`, `pdf_storage_path`
+    - Relations: Many-to-One with Users, Many-to-One with Courses.
+
+11. JOB ROLES & CAREER PATHS (`job_roles`, `career_paths`)
+    - Fields: `title`, `slug`, `category`, `description`, `salary_range`, `market_demand`,
+              `growth_rate`, `skills` (Element Collection), `tools` (Element Collection)
+
+12. OPPORTUNITIES (`opportunities`)
+    - Fields: `title`, `company`, `type` (INTERNSHIP, FULL_TIME, CONTRACT, BOUNTY), `location`,
+              `stipend_or_salary`, `deadline`, `requirements`, `apply_url`
+
+13. PROJECTS & CAPSTONES (`projects`)
+    - Fields: `title`, `slug`, `industry`, `difficulty`, `duration`, `description`,
+              `tech_stack`, `what_you_will_build`, `learning_outcomes`, `skills_learned`
+    - Element Collections: Configured with `@BatchSize(25)` for efficient loading.
+
+14. ADMIN ACTIVITY LOGS (`admin_activity_logs`)
+    - Fields: `admin_id`, `admin_username`, `action`, `resource_type`, `resource_id`,
+              `details`, `ip_address`, `user_agent`, `created_at`
+
+================================================================================
+7. CORE FUNCTIONAL WORKFLOWS & DATA FLOWS
+================================================================================
+
+7.1 Authentication, OTP & Email Verification Flow
+------------------------------------------------
+1. Registration:
+   - Learner inputs name, email, password.
+   - Password is encrypted with BCrypt (strength 10).
+   - Account record created in `users` with `is_email_verified = false`.
+   - Verification token created in `otp_verifications` (5-minute expiry).
+   - Backend dispatches verification link / OTP to learner's email.
+2. Verification:
+   - Learner enters OTP on `/verify-otp` or clicks `/verify-email?token=...`.
+   - Backend marks token as used, updates `users.is_email_verified = true`.
+   - Welcome email dispatched.
+3. Login:
+   - Verifies credentials against BCrypt hash.
+   - Enforces `is_email_verified == true`.
+   - Generates signed JWT Bearer Token (24h validity).
+   - Returns user metadata (ID, Name, Email, Role) to Redux store.
+
+7.2 Secure Video Streaming & Piracy Deterrence Pipeline
+-------------------------------------------------------
+1. Chunked Streaming:
+   - Video requested via `GET /api/courses/{courseId}/lessons/{lessonId}/stream`.
+   - Server verifies caller is enrolled or lesson has `is_free_preview = true`.
+   - Controller parses HTTP `Range: bytes=start-end` header.
+   - Streams requested byte range with `HTTP 206 Partial Content` and `Content-Range`.
+2. Client-Side Piracy Deterrence:
+   - Right-click and context menu blocked on video viewport.
+   - Keyboard shortcuts (`Ctrl+S`, `Ctrl+U`, `F12`, `PrintScreen`) intercepted.
+   - Dynamic, randomized floating watermark overlays learner's Email, User ID,
+     and active UTC timestamp every 15-30 seconds across the screen.
+
+7.3 Razorpay Payment, Webhook Verification & Enrollment Provisioning
+--------------------------------------------------------------------
+1. Order Initiation:
+   - Client calls `POST /api/payments/razorpay/create-order` with course ID.
+   - Backend calculates final price (applying coupon if present) and invokes Razorpay API.
+   - Creates a pending record in `payments`.
+2. Client Checkout:
+   - Razorpay Checkout modal loads with Order ID, Amount, Currency (INR).
+   - Learner completes UPI, Card, NetBanking, or Wallet payment.
+3. Signature Verification & Auto-Provisioning:
+   - Client submits `razorpay_order_id`, `razorpay_payment_id`, and `razorpay_signature`
+     to `POST /api/payments/razorpay/verify`.
+   - Backend computes HMAC-SHA256 signature using `razorpay.key.secret`.
+   - If signature matches:
+     * Sets `payments.status = CAPTURED`.
+     * Creates `enrollments` record with status `ACTIVE`.
+     * Sends payment confirmation email.
+     * Returns success redirect payload.
+
+7.4 PDF Certificate Generation & Verification Engine
+----------------------------------------------------
+1. Eligibility Check:
+   - Learner reaches 100% completion in `lesson_progress` and passes final quiz.
+2. Dynamic PDF Synthesis (OpenPDF):
+   - Certificate record generated with unique UUID verification code.
+   - Vector graphics engine renders certificate border, Ingage LMS gold seal,
+     student name, course title, completion date, and verification QR/URL.
+3. Public Credential Verification:
+   - Any employer or visitor visits `/certificate/verify/{code}`.
+   - Calls public endpoint `GET /api/certificates/verify/{code}`.
+   - Displays authenticated badge, issue date, recipient name, and PDF download button.
+
+7.5 Projects & Capstone Engine
+------------------------------
+1. Explore:
+   - Public visitors browse projects by industry (Healthcare, Gaming, FinTech, EdTech).
+   - Fetched strictly via `GET /api/projects` from PostgreSQL.
+2. Enroll & Complete:
+   - Authenticated learners initiate a capstone project.
+   - Access blueprints, tech stacks, and step-by-step objectives.
+   - Complete project submissions and earn verified skills badges.
+
+7.6 Admin Control Plane & Activity Audit Logging
+------------------------------------------------
+1. Unified Dashboard:
+   - Real-time KPI counters: Total Students, Total Revenue, Active Enrollments, Completion Rates.
+2. Complete Resource Management:
+   - Courses: Add, edit, publish/unpublish, reorder lessons, inspect student analytics.
+   - Users & Instructors: View profiles, edit roles, toggle active/ban status.
+   - Commerce: Real-time payment logs, coupon generator, refund handling.
+3. Immutable Audit Trail:
+   - Every administrative modification (publish, status toggle, delete, role change)
+     is automatically recorded in `admin_activity_logs` with admin username,
+     IP address, timestamp, and action description.
+
+================================================================================
+8. ENVIRONMENT CONFIGURATION & SETUP CHEAT SHEET
+================================================================================
+
+Backend Environment Variables (`Backend/.env` or `application.properties`):
+---------------------------------------------------------------------------
+PORT=8080
+SERVER_SERVLET_CONTEXT_PATH=/api
+SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/lms_db
+SPRING_DATASOURCE_USERNAME=postgres
+SPRING_DATASOURCE_PASSWORD=postgres
+JWT_SECRET=super_secret_jwt_key_at_least_256_bits_long_for_hmac_sha256
+JWT_EXPIRATION=86400000
+RAZORPAY_KEY_ID=rzp_test_your_key_id
+RAZORPAY_KEY_SECRET=your_razorpay_secret
+FRONTEND_URLS=http://localhost:3000,http://localhost:5173,https://ingage-lms.vercel.app
+
+Frontend Environment Variables (`frontend/.env`):
+-------------------------------------------------
+VITE_API_BASE_URL=http://localhost:8080/api
+
+Quick Start Commands:
+---------------------
+1. Start PostgreSQL:
+   Ensure database `lms_db` exists on port 5432.
+2. Run Spring Boot Backend:
+   cd Backend
+   ./mvnw.cmd spring-boot:run
+3. Run Vite Frontend:
+   cd frontend
+   npm run dev
+
+================================================================================
+9. COMPREHENSIVE REST API REGISTRY
+================================================================================
+
+AUTH & USERS
+  POST /api/auth/register                   Register new account
+  POST /api/auth/login                      Login with email + password
+  POST /api/auth/login/request-otp          Request 6-digit login OTP
+  POST /api/auth/login/verify-otp           Verify OTP and issue JWT
+  POST /api/auth/logout                     Invalidate session / clear cookie
+  GET  /api/users/me                        Get current user profile
+  PUT  /api/users/me                        Update profile details (name, phone)
+
+COURSES & LEARNING
+  GET  /api/courses                         Get published course catalog
+  GET  /api/courses/{id}                    Get course curriculum details
+  GET  /api/courses/{id}/lessons/{lessonId}/stream  Stream video chunk (Range header)
+  GET  /api/enrollments/my                  List enrolled courses for current user
+  POST /api/enrollments/{courseId}/lessons/{lessonId}/complete  Mark lesson finished
+  POST /api/quizzes/{quizId}/submit         Submit quiz answers & get instant score
+
+PAYMENTS & COMMERCE
+  POST /api/payments/razorpay/create-order  Initialize Razorpay order
+  POST /api/payments/razorpay/verify        Verify HMAC-SHA256 signature & auto-enroll
+  GET  /api/payments/my                     Get learner transaction receipts
+
+CERTIFICATES
+  GET  /api/certificates/my                 Get current user's certificates
+  GET  /api/certificates/verify/{code}      Publicly verify certificate
+  GET  /api/certificates/verify/{code}/download  Download official PDF certificate
+
+CAREERS, OPPORTUNITIES & PROJECTS
+  GET  /api/careers                         Get career pathways & roles
+  GET  /api/careers/{slug}                  Get career roadmap & salary data
+  GET  /api/opportunities                  Get internships, jobs & challenges
+  GET  /api/projects                       Get public capstone projects catalog
+
+ADMIN MANAGEMENT (Requires ROLE_ADMIN)
+  GET  /api/admin/dashboard/stats           System-wide KPI summary
+  GET  /api/admin/courses                   Manage all courses (draft & published)
+  POST /api/admin/courses                   Create new course
+  PUT  /api/admin/courses/{id}              Update course & syllabus
+  GET  /api/admin/users                     List and filter users
+  PUT  /api/admin/users/{id}/role           Change user role (STUDENT/INSTRUCTOR/ADMIN)
+  PUT  /api/admin/users/{id}/status         Activate or deactivate user account
+  GET  /api/admin/payments                  Inspect all system transactions
+  GET  /api/admin/discounts                 Manage active discount coupons
+  GET  /api/admin/certificates              Inspect issued credentials
+  GET  /api/admin/activity-logs             Query immutable administrative audit log
+  GET  /api/admin/settings                  Get platform system settings
+  PUT  /api/admin/settings                  Update platform system settings
+
+================================================================================
+                    END OF ARCHITECTURE SPECIFICATION
+================================================================================
