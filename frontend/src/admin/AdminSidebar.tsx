@@ -85,11 +85,6 @@ const navGroups: NavGroup[] = [
         path: '/admin/users',
         icon: Users,
       },
-      {
-        name: 'Instructors',
-        path: '/admin/instructors',
-        icon: GraduationCap,
-      },
     ],
   },
 
